@@ -1,12 +1,43 @@
+# === Python Bytecode and Cache ===
 __pycache__/
 *.py[cod]
-.ipynb_checkpoints/
-*.lock
-*.gdb
-*.tbx
-*.lyrx
+*.pyo
+*.so
+
+# === Virtual Environments ===
 .env
 .venv/
+env/
+venv/
 *.egg-info/
 dist/
 build/
+
+# === Jupyter Notebooks ===
+.ipynb_checkpoints/
+
+# === ArcGIS / Esri Files ===
+*.gdb/
+*.gdb
+*.tbx
+*.lyrx
+*.sde
+*.lock
+
+# === Logs / Outputs ===
+*.log
+output/
+XYdata.csv
+XYpointsShP.*
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+
+# === OS / IDE Metadata ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
