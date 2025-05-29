@@ -195,7 +195,7 @@ def add_days_to_last_date_Mult(dates, periods):
     return dates
 
 # === Data Preprocessing for One-Step Prediction ===
-
+win1st=len(list_dates)-1
 def df_to_X_y(df, window_size):
     """Reshape dataset for 1-step prediction."""
     df_as_np = df.to_numpy()
