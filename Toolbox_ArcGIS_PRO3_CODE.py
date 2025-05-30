@@ -9,7 +9,6 @@ import numpy as np
 import csv
 import arcpy
 from tensorflow import keras
-from sklearn.metrics import mean_squared_error
 import math
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import load_model
