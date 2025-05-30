@@ -461,7 +461,7 @@ if str(isIRREG) == 'false':
 else:
     # === MULTI-STEP PREDICTION ===
     if steps > 1:
-        epochs = 50
+        #epochs = 50
         time_steps = len(tms_ar) - steps
         num_features = 2
         output_steps = steps
