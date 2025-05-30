@@ -61,34 +61,28 @@ if str(isIRREG) == 'false':
         nodi = 50 if steps == 1 else 100
     else:
         nodi = int(nod)
-
     if steps > 1:
         if nod1 == '':
             nodi1 = 50
         else:
             nodi1 = int(nod1)
-
     if LR == '':
         learnR = 0.001 if steps == 1 else 0.0001
     else:
         learnR = float(LR)
-
     if epo == '':
         epochs = 15 if steps == 1 else 35
     else:
         epochs = int(epo)
-
 else:
     if nod == '':
         nodi = 50 if steps == 1 else 8
     else:
         nodi = int(nod)
-
     if LR == '':
         learnR = 0.001
     else:
         learnR = float(LR)
-
     if epo == '':
         epochs = 35 if steps == 1 else 50
     else:
@@ -98,7 +92,6 @@ if str(isCNR) == 'true':
     with open(file, 'r') as my_file:
         reader = csv.reader(my_file)
         rows = list(reader)
-
         # Process: Check if the timesteps are regular or not 
         a = [l for l in rows if any(s.startswith('List') for s in l)]
         a1 = [item for sublist in a for item in sublist]
@@ -125,7 +118,6 @@ if str(isCNR) == 'true':
         tms_ar = np.array(tms)
         tms_u = np.unique(tms_ar)
         disp = rows[43:]
-
 else:
     with open(file, "r") as file1:
         dati = list(csv.reader(file1, delimiter=","))
@@ -153,23 +145,19 @@ else:
     tms_u = np.unique(tms_ar)
 ####################################################################
 ##if len(tms_u)!=2:
-##   arcpy.AddError("Time series forcasting using LSTM model requires no data gaps.\n You need to fill missing values as part of the data analysis and cleaning process before using this toolbox.") 
-##   sys.exit(0)
+##   arcpy.AddError("Time series forcasting using LSTM model requires no data gaps.\n You need to fill missing values as part of the data analysis and cleaning process before using this toolbox.") 
+##   sys.exit(0)
 ####################################################################
 # Process: Define the coordinates of the selected area to be trained 
 displacements=[]
-
 for i in range(len(disp)):
     if np.float64(disp[i][1]) < latmax and np.float64(disp[i][1]) > latmin:
         if np.float64(disp[i][2]) < lonmax and np.float64(disp[i][2]) > lonmin:
             displacements.append(disp[i])
-
 Lat = list(map(lambda x: x[1], displacements))
 Lon = list(map(lambda x: x[2], displacements))
-
 Lat_df = pd.DataFrame(Lat, columns=['y'])
 Lon_df = pd.DataFrame(Lon, columns=['x'])
-
 df = pd.concat([Lon_df, Lat_df], axis=1)
 ####################################################################
 if str(isCNR) == 'true':
@@ -183,7 +171,6 @@ def add_days_to_last_date(dates, period):
     new_date = last_date + timedelta(days=period)
     dates.append(new_date.strftime("%Y-%m-%d"))
     return dates
-
 def add_days_to_last_date_Mult(dates, periods):
     """Add multiple periods to the last date in sequence."""
     last_date = datetime.strptime(dates[-1], "%Y-%m-%d")
@@ -193,7 +180,6 @@ def add_days_to_last_date_Mult(dates, periods):
         dates.append(new_date.strftime("%Y-%m-%d"))
         last_date = new_date
     return dates
-
 # === Data Preprocessing for One-Step Prediction ===
 win1st=len(list_dates)-1
 def df_to_X_y(df, window_size):
@@ -206,9 +192,7 @@ def df_to_X_y(df, window_size):
         label = df_as_np[window_size, i]
         y.append(label)
     return np.array(X), np.array(y)
-
 # === Accuracy Plotting ===
-
 def plotCurves(acc, val_acc, epochs, RMSE):
     """Plot training and validation accuracy."""
     numbers = list(range(1, epochs + 1)) 
@@ -219,9 +203,7 @@ def plotCurves(acc, val_acc, epochs, RMSE):
     plt.ylabel('Root Mean Squared Error')
     plt.legend()
     plt.show()
-
 # === Data Preprocessing for Multi-Step Prediction ===
-
 def df_to_XY_N(df, WIN_SIZE, st):
     """Reshape dataset for N-step prediction."""
     df_as_np = df.to_numpy()
@@ -232,20 +214,16 @@ def df_to_XY_N(df, WIN_SIZE, st):
         label = df_as_np[WIN_SIZE:WIN_SIZE + st, i]
         y.append(label)
     return np.array(X), np.array(y)
-
 # === TG-LSTM Model ===
-
 class TimeGatedLSTMCell(LSTMCell):
     def __init__(self, units, **kwargs):
         super(TimeGatedLSTMCell, self).__init__(units, **kwargs)
-
     def build(self, input_shape):
         features = input_shape[-1] - 1
         super().build((features,))
         self.time_kernel = self.add_weight(shape=(1, self.units * 4), name='time_kernel', initializer='uniform')
         self.time_bias = self.add_weight(shape=(self.units * 4,), name='time_bias', initializer='zeros')
         self.built = True
-
     def call(self, inputs, states, training=None):
         features, time_info = inputs[:, :-1], inputs[:, -1:]
         lstm_output, new_states = super().call(features, states, training)
@@ -255,17 +233,11 @@ class TimeGatedLSTMCell(LSTMCell):
         c = f * new_states[1] + i * self.activation(c)
         h = o * self.activation(c)
         return h, [h, c]
-
-def build_time_gated_lstm_model(input_shape, units, learn_rate):
-    model = Sequential([
-        RNN(TimeGatedLSTMCell(units), input_shape=input_shape),
-        Dense(2, activation='linear')
-    ])
-    model.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=learn_rate), metrics=[RootMeanSquaredError()])
+def build_time_gated_lstm_model(input_shape, units, learnR):
+    model = Sequential([RNN(TimeGatedLSTMCell(units), input_shape=input_shape),Dense(2, activation='linear')])
+    model.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=learnR), metrics=[RootMeanSquaredError()])
     return model
-
 # === Temporal Fusion Transformer Model ===
-
 def temporal_fusion_transformer(input_shape, output_steps, d_model=8, num_heads=2):
     """
     Build a simplified TFT model using Keras layers.
@@ -284,19 +256,14 @@ def temporal_fusion_transformer(input_shape, output_steps, d_model=8, num_heads=
     
     attn_output = MultiHeadAttention(num_heads=num_heads, key_dim=d_model)(lstm_out, lstm_out)
     attn_output = LayerNormalization(epsilon=1e-5)(attn_output + lstm_out)
-
     grn_output = Dense(d_model, activation='relu')(attn_output)
     grn_output = LayerNormalization(epsilon=1e-5)(grn_output + attn_output)
-
     flattened_output = Flatten()(grn_output)
     output_layer = Dense(output_steps * 2)(flattened_output)
     output_layer = Reshape((output_steps, 2))(output_layer)
-
     model = Model(inputs=input_layer, outputs=output_layer)
     return model
-
 # === Custom Hybrid Loss Function ===
-
 def custom_l1_l2_loss(alpha=0.3, beta=0.7):
     """Create a custom loss function combining L1 and L2 losses."""
     @tf.autograph.experimental.do_not_convert
@@ -305,11 +272,8 @@ def custom_l1_l2_loss(alpha=0.3, beta=0.7):
         l2_loss = tf.reduce_mean(tf.square(y_true - y_pred))
         return alpha * l1_loss + beta * l2_loss
     return loss
-
-#################################################################### 
+#################################################################### 
 # Process: Define the functions of the tkinter 
-
-
 def show():
     p = arcpy.mp.ArcGISProject('current')
     m = p.listMaps()[0]
@@ -317,7 +281,6 @@ def show():
     desc = arcpy.Describe(lyrFile)
     my_string = desc.FIDSet
     my_list = my_string.split(";") 
-
     if len(my_list) != 1:
         MessageBox = ctypes.windll.user32.MessageBoxW
         MessageBox(None, 'You are allowed to predict only one point. More than one point has been selected!', 'Window title', 0)
@@ -325,7 +288,6 @@ def show():
         e = int(my_string)
         date_range = [pd.to_datetime(date) for date in list_dates]
         te_X = np.append(Xe1[e], Xe[e])
-
         if len(tms_u) == 2:
             interval = pd.to_datetime(list_dates[1]) - pd.to_datetime(list_dates[0])
             last_date = pd.to_datetime(list_dates[-1])
@@ -347,20 +309,16 @@ def show():
                 date_range_pred = add_days_to_last_date_Mult(list_datesNew, periods)
                 date_range_predi = [pd.to_datetime(date) for date in date_range_pred]
                 te_Xe = np.append(te_X, test_predictFIN[e, :, 0])
-
         fig, ax = plt.subplots(figsize=(9, 5))
         fig.suptitle('Predicting', fontsize=14)
         ax.set_xlabel('Time series Date', fontsize=14)
         ax.set_ylabel('Time series Displacements of The Point {} \n '.format(e), fontsize=14)
-
         ax.plot(date_range_predi, te_Xe, label='Predicted', linestyle='dashed', color='blue')
         ax.plot(date_range, te_X, label='Original', color='red')
-
         locator = mdates.AutoDateLocator()
         formatter = mdates.DateFormatter('%Y-%m-%d')
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formatter)
-
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
         plt.tight_layout()
         plt.legend()
@@ -410,7 +368,6 @@ disp_df1 = pd.DataFrame(val,columns=new_cols1)
 if len(displacements) > 100000:
     arcpy.AddError("The number of displacement samples is not allowed to exceed 100000.\nChange the extent of the area or recheck your dataset.")
     sys.exit(0)
-
 # === TRAINING PART ===
 if str(isIRREG) == 'false':
     
@@ -420,53 +377,41 @@ if str(isIRREG) == 'false':
         X1, y1 = df_to_X_y(disp_df1, WINDOW_SIZE)
         X1 = X1.astype('float64')
         y1 = y1.astype('float64')
-
         vt = int(0.6 * len(displacements))
         ve = int(0.2 * len(displacements))
-
         X_train1, y_train1 = X1[:vt], y1[:vt]
         X_val1, y_val1 = X1[vt:vt+ve], y1[vt:vt+ve]
         X_test1, y_test1 = X1[vt+ve:vt+2*ve], y1[vt+ve:vt+2*ve]
-
         model1 = Sequential()
         model1.add(InputLayer((win1st, 1)))  # One input feature
         model1.add(LSTM(nodi))
         model1.add(Dense(1, 'linear'))
         model1.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=learnR), metrics=[RootMeanSquaredError()])
         model1.summary()
-
         history = model1.fit(X_train1, y_train1, validation_data=(X_val1, y_val1), epochs=epochs)
-
         acc = history.history['root_mean_squared_error']
         val_acc = history.history['val_root_mean_squared_error']
         test_predictions = model1.predict(X_test1).flatten()
         RMSE = round(math.sqrt(mean_squared_error(y_test1, test_predictions)), 3)
-
         MessageBox = ctypes.windll.user32.MessageBoxW
         MessageBox(None, f'The dataset has been trained and tested.\nThe Root Mean Squared Error is {RMSE} \n', 'Window title', 0)
-
         if str(ischecked) == 'true':
             plotCurves(acc, val_acc, epochs, RMSE)
-
         # === Add TKINTER Prediction Box ===
         dd_as_np = disp_df1.to_numpy()
         Xe, Xe1 = [], []
-
         for j in range(dd_as_np.shape[1]):
             row = [[a] for a in dd_as_np[1:, j]]
             Xe.append(row)
             Xe1.append(dd_as_np[0, j])
-
         Xe = np.array(Xe).astype('float64')
         Xe1 = np.array(Xe1).astype('float64')
         test_predictFIN = model1.predict(Xe)
-
         root = tk.Tk()
         root.geometry("200x150")
         tk.Button(root, text='Another Point', command=show).grid(row=1, column=0, padx=50, pady=20)
         tk.Button(root, text="Exit", command=Close).grid(row=2, column=0, padx=50, pady=10)
         root.mainloop()
-
     # === MULTI-STEP PREDICTION ===
     elif steps > 1:
         st = steps
@@ -474,61 +419,47 @@ if str(isIRREG) == 'false':
         X1, y1 = df_to_XY_N(disp_df1, WIN_SIZE, st)
         X1 = X1.astype('float64')
         y1 = y1.astype('float64')
-
         vt = int(0.6 * len(displacements))
         ve = int(0.2 * len(displacements))
-
         X_train2, y_train2 = X1[:vt], y1[:vt]
         X_val2, y_val2 = X1[vt:vt+ve], y1[vt:vt+ve]
         X_test2, y_test2 = X1[vt+ve:vt+2*ve], y1[vt+ve:vt+2*ve]
-
         model2 = Sequential()
         model2.add(LSTM(nodi, input_shape=(WIN_SIZE, 1), return_sequences=True))
         model2.add(LSTM(nodi1, return_sequences=False))
         model2.add(Dense(st, 'linear'))
         model2.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=learnR), metrics=[RootMeanSquaredError()])
         model2.summary()
-
         cp2 = ModelCheckpoint('model2/', save_best_only=True)
         history2 = model2.fit(X_train2, y_train2, validation_data=(X_val2, y_val2), epochs=epochs, callbacks=[cp2])
-
         acc = history2.history['root_mean_squared_error']
         val_acc = history2.history['val_root_mean_squared_error']
         test_predictions2 = model2.predict(X_test2)
         RMSE = round(math.sqrt(mean_squared_error(y_test2, test_predictions2)), 3)
-
         MessageBox = ctypes.windll.user32.MessageBoxW
         MessageBox(None, f'The dataset has been trained and tested.\nThe Root Mean Squared Error is {RMSE} \n', 'Window title', 0)
-
         if str(ischecked) == 'true':
             plotCurves(acc, val_acc, epochs, RMSE)
-
         # === Add TKINTER Prediction Box ===
         dd_as_np = disp_df1.to_numpy()
         Xe, Xe1 = [], []
-
         for j in range(dd_as_np.shape[1]):
             row = [[a] for a in dd_as_np[st:, j]]
             Xe.append(row)
             Xe1.append(dd_as_np[:st, j])
-
         Xe = np.array(Xe).astype('float64')
         Xe1 = np.array(Xe1).astype('float64')
         test_predictFIN = model2.predict(Xe)
-
         root = tk.Tk()
         root.geometry("200x150")
         tk.Button(root, text='Another Point', command=show).grid(row=1, column=0, padx=50, pady=20)
         tk.Button(root, text="Exit", command=Close).grid(row=2, column=0, padx=50, pady=10)
         root.mainloop()
-
     # === INVALID STEPS HANDLING ===
     else:
         arcpy.AddError("The number of predicted time steps is not valid.\nRefill the field of this parameter with a valid value.")
         sys.exit(0)
-
-if str(isIRREG) == 'true':
-
+else:
     # === MULTI-STEP PREDICTION ===
     if steps > 1:
         epochs = 50
@@ -537,49 +468,39 @@ if str(isIRREG) == 'true':
         output_steps = steps
         st = steps
         WIN_SIZE = len(list_dates) - st
-
         # Prepare dataset
         X1, y1 = df_to_XY_N(disp_df1, WIN_SIZE, st)
         X1 = X1.astype('float64')
         y1 = y1.astype('float64')
         X1 = np.reshape(X1, (X1.shape[0], X1.shape[1]))
-
         # Time intervals
         tmdomX = np.reshape(tms_ar[:-st], (1, -1, 1))
         tmdomX = np.repeat(tmdomX, repeats=X1.shape[0], axis=0)
         tmdomX = np.reshape(tmdomX, (tmdomX.shape[0], tmdomX.shape[1]))
-
         tmdomY = np.reshape(tms_ar[-st:], (1, -1, 1))
         tmdomY = np.repeat(tmdomY, repeats=y1.shape[0], axis=0)
         tmdomY = np.reshape(tmdomY, (tmdomY.shape[0], tmdomY.shape[1]))
-
         # Stack with displacement data
         X1 = np.stack((X1, tmdomX), axis=-1)
         y1 = np.stack((y1, tmdomY), axis=-1)
-
         # Train/validation/test split
         vt = int(0.6 * len(displacements))
         ve = int(0.2 * len(displacements))
         X_train, y_train = X1[:vt], y1[:vt]
         X_val, y_val = X1[vt:vt+ve], y1[vt:vt+ve]
         X_test, y_test = X1[vt+ve:vt+2*ve], y1[vt+ve:vt+2*ve]
-
         tft_model = temporal_fusion_transformer(input_shape=(time_steps, num_features), output_steps=output_steps)
         optimizer = tf.keras.optimizers.Adam(clipnorm=1.0)
         tft_model.compile(optimizer=optimizer, loss=custom_l1_l2_loss(alpha=0.3, beta=0.7), metrics=[RootMeanSquaredError()])
         history = tft_model.fit(X_train, y_train, epochs=epochs, batch_size=128, validation_data=(X_val, y_val))
-
         acc = history.history['root_mean_squared_error']
         val_acc = history.history['val_root_mean_squared_error']
         test_predictions2 = tft_model.predict(X_test)
-
         MSE = mean_squared_error(y_test[:, :, 0], test_predictions2[:, :, 0])
         RMSE = round(math.sqrt(MSE), 3)
-
         ctypes.windll.user32.MessageBoxW(None, f'The dataset has been trained and tested.\nThe Root Mean Squared Error is {RMSE}', 'Window title', 0)
         if str(ischecked) == 'true':
             plotCurves(acc, val_acc, epochs, RMSE)
-
         # Interactive TK GUI
         dd_as_np = disp_df1.to_numpy()
         Xe, Xe1 = [], []
@@ -588,53 +509,49 @@ if str(isIRREG) == 'true':
             Xe1.append(dd_as_np[:st, j])
         Xe = np.array(Xe).astype('float64')
         Xe1 = np.array(Xe1).astype('float64')
-
         tmdomXFIN = tms_ar[st:]
         tmdomXFIN = np.reshape(tmdomXFIN, (1, -1, 1))
         tmdomXFIN = np.repeat(tmdomXFIN, repeats=Xe.shape[0], axis=0)
         tmdomXFIN = np.reshape(tmdomXFIN, (tmdomXFIN.shape[0], tmdomXFIN.shape[1]))
-
         XeFIN = np.stack((Xe[:, :, 0], tmdomXFIN), axis=-1)
         test_predictFIN = tft_model.predict(XeFIN)
-
         root = tk.Tk()
         root.geometry("200x150")
         tk.Button(root, text='Another Point', command=show).grid(row=1, column=0, padx=50, pady=20)
         tk.Button(root, text="Exit", command=Close).grid(row=2, column=0, padx=50, pady=10)
         root.mainloop()
-
     # === SINGLE-STEP PREDICTION ===
     elif steps == 1:
         WINDOW_SIZE = win1st
         X1, y1 = df_to_X_y(disp_df1, WINDOW_SIZE)
         X1 = X1.astype('float64')
         y1 = y1.astype('float64')
-
-        tmdomX = np.repeat(tms_ar[:-1].reshape(1, -1, 1), repeats=X1.shape[0], axis=0)
-        tmdomY = np.repeat(tms_ar[-1], repeats=y1.shape[0])
+        X1=np.reshape(X1,(X1.shape[0],X1.shape[1]))
+        tmdom = tms_ar
+        tmdomX=(tmdom[:-1])#3/10/2023
+        tmdomX=np.reshape(tmdomX,(1,tmdomX.shape[0],1))#3/10/2023
+        rep_tmdomX = np.repeat(tmdomX, repeats=X1.shape[0], axis=0)#3/10/2023
+        tmdomX=np.reshape(rep_tmdomX,(rep_tmdomX.shape[0],rep_tmdomX.shape[1]))#3/10/2023
+        tmdomY=tmdom[-1]#3/10/2023
+        tmdomY = np.repeat(tmdomY, repeats=y1.shape[0], axis=0)#3/10/2023
         X1 = np.stack((X1, tmdomX.squeeze()), axis=-1)
         y1 = np.stack((y1, tmdomY), axis=-1)
-
         vt = int(0.6 * len(displacements))
         ve = int(0.2 * len(displacements))
         X_train1, y_train1 = X1[:vt], y1[:vt]
         X_val1, y_val1 = X1[vt:vt + ve], y1[vt:vt + ve]
         X_test1, y_test1 = X1[vt + ve:vt + 2 * ve], y1[vt + ve:vt + 2 * ve]
-
-        model1 = build_time_gated_lstm_model(input_shape=(WINDOW_SIZE, 2), units=75)
+        model1 = build_time_gated_lstm_model(input_shape=(WINDOW_SIZE, 2), units=nodi, learnR=learnR)
         model1.summary()
         history = model1.fit(X_train1, y_train1, validation_data=(X_val1, y_val1), epochs=epochs, batch_size=128)
         acc = history.history['root_mean_squared_error']
         val_acc = history.history['val_root_mean_squared_error']
         test_predictions = model1.predict(X_test1)
         RMSE = round(math.sqrt(mean_squared_error(y_test1[:, 0], test_predictions[:, 0])), 3)
-
         MessageBox = ctypes.windll.user32.MessageBoxW
         MessageBox(None, f'The dataset has been trained and tested.\n The Root Mean Squared Error is {RMSE} \n', 'Window title', 0)
-
         if str(ischecked) == 'true':
             plotCurves(acc, val_acc, epochs, RMSE)
-
         dd_as_np = disp_df1.to_numpy()
         Xe = [[[a] for a in dd_as_np[1:, j]] for j in range(dd_as_np.shape[1])]
         Xe1 = [dd_as_np[0, j] for j in range(dd_as_np.shape[1])]
@@ -642,15 +559,12 @@ if str(isIRREG) == 'true':
         Xe1 = np.array(Xe1).astype('float64')
         tmdomXFIN = np.repeat(tms_ar[1:].reshape(1, -1, 1), repeats=Xe.shape[0], axis=0)
         XeFIN = np.stack((Xe[:, :, 0], tmdomXFIN.squeeze()), axis=-1)
-
         test_predictFIN = model1.predict(XeFIN)
-
         root = tk.Tk()
         root.geometry("200x150")
         tk.Button(root, text='Another Point', command=show).grid(row=1, column=0, padx=50, pady=20)
         tk.Button(root, text="Exit", command=Close).grid(row=2, column=0, padx=50, pady=10)
         root.mainloop()
-
     else:
         arcpy.AddError("The number of predicted time steps is not valid.\nRefill the field of this parameter with a valid value.")
         sys.exit(0)
