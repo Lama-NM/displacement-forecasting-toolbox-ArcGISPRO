@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 authors:
   - family-names: Moualla
     given-names: Lama
-title: "Displacement Forecasting Toolbox"
+title: "Time Series Displacement Forecasting Toolbox"
 version: "1.0.0"
 date-released: 2025-05-23
 url: "https://github.com/Lama-NM/displacement-forecasting-toolbox-ArcGISPRO.git"
