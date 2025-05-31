@@ -237,7 +237,7 @@ def build_time_gated_lstm_model(input_shape, units, learnR):
     model.compile(loss=MeanSquaredError(), optimizer=Adam(learning_rate=learnR), metrics=[RootMeanSquaredError()])
     return model
 # === Temporal Fusion Transformer Model ===
-def temporal_fusion_transformer(input_shape, output_steps, d_model=8, num_heads=2):
+def temporal_fusion_transformer(input_shape, output_steps, d_model=nodi, num_heads=2):
     """
     Build a simplified TFT model using Keras layers.
     
@@ -487,8 +487,8 @@ else:
         X_train, y_train = X1[:vt], y1[:vt]
         X_val, y_val = X1[vt:vt+ve], y1[vt:vt+ve]
         X_test, y_test = X1[vt+ve:vt+2*ve], y1[vt+ve:vt+2*ve]
-        tft_model = temporal_fusion_transformer(input_shape=(time_steps, num_features), output_steps=output_steps)
-        optimizer = tf.keras.optimizers.Adam(clipnorm=1.0)
+        tft_model = temporal_fusion_transformer(input_shape=(time_steps, num_features), output_steps=output_steps, d_model=nodi, num_heads=2)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learnR,clipnorm=1.0)
         tft_model.compile(optimizer=optimizer, loss=custom_l1_l2_loss(alpha=0.3, beta=0.7), metrics=[RootMeanSquaredError()])
         history = tft_model.fit(X_train, y_train, epochs=epochs, batch_size=128, validation_data=(X_val, y_val))
         acc = history.history['root_mean_squared_error']
